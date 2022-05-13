@@ -24,16 +24,16 @@ build: clean
 > poetry build
 
 mypy:
-> poetry run mypy nordvpn/
+> poetry run mypy nordvpn_indicator/ nordvpn/
 
 flake:
-> poetry run flake8 nordvpn/ tests/
+> poetry run flake8 nordvpn_indicator/ nordvpn/ tests/
 
 isort:
-> poetry run isort nordvpn/ tests/
+> poetry run isort nordvpn_indicator/ nordvpn/ tests/
 
 black:
-> poetry run black nordvpn/ tests/
+> poetry run black nordvpn_indicator/ nordvpn/ tests/
 
 format: isort black
 

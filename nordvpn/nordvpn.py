@@ -1,355 +1,243 @@
-import re
-import subprocess
 from enum import Enum, unique
+from subprocess import CalledProcessError, run
+from typing import Optional
+
+from nordvpn import (
+    NordVpnSettings,
+    NordVpnStatus,
+    Protocols,
+    SettingsNames,
+    Technologies,
+)
+from nordvpn.utils import parse_words
 
 
-@unique
-class ConnectionStatus(Enum):
+class NordVpn:
     """
-    Connection status to the VPN
-    """
-
-    CONNECTED = "Connected"
-    DISCONNECTED = "Disconnected"
-    WAITING = "Connecting"
-
-
-class NordVpnStatus:
-    """
-    Status of the NordVpn client app
+    NordVPN Client interface
     """
 
     @unique
-    class Param(Enum):
-        """
-        Parameters that compose the client app status
-        """
-
-        STATUS = "Status"
-        CURRENT_SERVER = "Current server"
-        COUNTRY = "Country"
-        CITY = "City"
-        IP = "Your new IP"
-        PROTOCOL = "Current protocol"
-        TRANSFER = "Transfer"
-        UPTIME = "Uptime"
-
-    def __init__(self):
-        self.raw_status = "Unknown"
-        self.data = {
-            NordVpnStatus.Param.STATUS: ConnectionStatus.WAITING,
-            NordVpnStatus.Param.CURRENT_SERVER: "Unknown",
-            NordVpnStatus.Param.COUNTRY: "Unknown",
-            NordVpnStatus.Param.CITY: "Unknown",
-            NordVpnStatus.Param.IP: "Unknown",
-            NordVpnStatus.Param.PROTOCOL: "Unknown",
-            NordVpnStatus.Param.TRANSFER: "Unknown",
-            NordVpnStatus.Param.UPTIME: "Unknown",
-        }
-        self.warnings = set()
-
-    def update(self, raw_status):
-        # Save the raw status string
-        self.raw_status = raw_status
-
-        # If there are warnings, show them in the raw_status
-        if len(self.warnings) > 0:
-            self.raw_status = "\n\r".join([self.raw_status] + sorted(self.warnings))
-            self.data[NordVpnStatus.Param.STATUS] = ConnectionStatus.WAITING
-            return
-
-        # Try to parse each parameter
-        try:
-            for param in NordVpnStatus.Param:
-                # Status needs to be converted and must always be present
-                if param == NordVpnStatus.Param.STATUS:
-                    status = self._parse_param(
-                        NordVpnStatus.Param.STATUS.value, raw_status, True
-                    )
-                    self.data[NordVpnStatus.Param.STATUS] = ConnectionStatus(status)
-                else:
-                    # Parse parameter and store its value
-                    value = self._parse_param(param.value, raw_status)
-                    self.data[param] = value
-        except Exception:
-            self.data[NordVpnStatus.Param.STATUS] = ConnectionStatus.WAITING
-
-    def add_warning(self, message):
-        """
-        Add a warning message to the raw_status
-        """
-        self.warnings.add(message)
-
-    def clear_warnings(self):
-        """
-        Clear all the warning messages
-        """
-        self.warnings.clear()
-
-    def _parse_param(self, param, source, throw=False):
-        """
-        Parse the parameter from the source string. If throw is True, an exception
-        is thrown when the parameter is not found.
-        Return the value string of the parsed parameter key
-        """
-        match = re.search(r"{}:\s(.*)".format(param), source)
-        if match is None and throw:
-            raise Exception("Unable to parse {} from {}".format(param, source))
-        elif match is None:
-            return "Unknown"
-        return match.group(1).strip()
-
-    # Removes whitespace before actual status from raw_status
-    def get_label_status(self):
-        return re.findall(r"\w[\w:\s.]*\w", self.raw_status)[0]
-
-
-class NordVpn(object):
-    """
-    NordVpn
-
-    Args:
-        nordvpn: Nordvpn instance for connecting/disconnecting and
-        checking the status of the connection
-
-    Returns:
-        Instance of Indicator class
-    """
-
-    def __init__(self):
-        self.status = NordVpnStatus()
-        self.UPDATE_WARNING = (
+    class Messages(Enum):
+        UPDATE_WARNING = (
             "A new version of NordVpn is available! Please update the application."
         )
-        self.LOGIN_WARNING = "Please enter your login details."
+        LOGIN_WARNING = "Please enter your login details."
+        CONNECT_SUCCESS = "You are connected to"
+        DISCONNECT_SUCCESS = "You are disconnected from NordVPN"
+        INVALID_COMMAND = "The command you entered is not valid."
+        INVALID_CITIES_COMMAND = "Servers by city are not available for this country"
+
+    def __init__(self):
+        pass
 
     # Connection interfaces
 
-    def connect(self, _):
+    def connect(self) -> bool:
         """
-        Runs command to connect with a NordVpn server
+        Connect with a NordVpn server
+        """
+        return self._run_nordvpn_connect_command()
+
+    def connect_to_country(self, country: str) -> bool:
+        """
+        Connect to a NordVpn server in the specified country
 
         Args:
-            _: As required by AppIndicator
+            country: Country name
         """
-        output = self._run_command("nordvpn connect")
-        if not self._output_has_warnings(output):
-            self.status.clear_warnings()
+        return self._run_nordvpn_connect_command(country.replace(" ", "_"))
 
-    def connect_to_country(self, country):
+    def connect_to_group(self, group: str) -> bool:
         """
-        Runs command to connect to a NordVpn server in the specified country
+        Connect to a NordVpn server group
+        """
+        return self._run_nordvpn_connect_command(group.replace(" ", "_"))
 
-        Args:
-            country: Country name as string
+    def connect_to_city(self, city: str) -> bool:
         """
-        output = self._run_command(
-            "nordvpn connect {}".format(country.replace(" ", "_"))
-        )
-        if not self._output_has_warnings(output):
-            self.status.clear_warnings()
+        Connect to a specific NordVpn city server
+        """
+        return self._run_nordvpn_connect_command(city.replace(" ", "_"))
 
-    def connect_to_group(self, group):
+    def disconnect(self) -> bool:
         """
-        Connect to a server group
+        Disconnect from the NordVpn server
         """
-        output = self._run_command("nordvpn connect {}".format(group.replace(" ", "_")))
-        if not self._output_has_warnings(output):
-            self.status.clear_warnings()
-
-    def connect_to_city(self, city):
-        """
-        Connect to a specific city server
-        """
-        output = self._run_command("nordvpn connect {}".format(city.replace(" ", "_")))
-        if not self._output_has_warnings(output):
-            self.status.clear_warnings()
-
-    def disconnect(self, _):
-        """
-        Runs command to disconnect with the currently connected NordVpn server
-
-        Args:
-            _: As required by AppIndicator
-        """
-        output = self._run_command("nordvpn disconnect")
-        if not self._output_has_warnings(output):
-            self.status.clear_warnings()
+        output = self._run_nordvpn_command("disconnect")
+        return self.Messages.DISCONNECT_SUCCESS.value in output
 
     # Getters and Setters interfaces
 
-    def get_status(self):
+    def get_status(self) -> NordVpnStatus:
         """
-        Returns the current status of the VPN connection as a string
+        Returns the VPN connection status
         """
-        self._status_check()
-        return self.status
+        output = self._run_nordvpn_command("status")
+        return NordVpnStatus(output)
 
-    def get_countries(self):
+    def get_countries(self) -> list[str]:
         """
         Returns a list of string representing the available countries
         """
-        raw_countries = self._run_command("nordvpn countries")
+        raw_countries = self._run_nordvpn_command("countries")
         if raw_countries is None:
             return []
-        countries = self._parse_words(raw_countries)
+        countries = parse_words(raw_countries)
         countries.sort()
         return countries
 
-    def get_settings(self):
-        """
-        Read the current settings from the client app and return them as dictionary
-
-        Returns:
-            - A dictionary {Setting:Value}
-        """
-        output = self._run_command("nordvpn settings")
-        if output is None:
-            return {}
-        return self._parse_settings(output)
-
-    def set_settings(self, settings):
-        """
-        Handle the update of nord vpn settings from the indicator app
-
-        Args:
-            - settings: a dict {Settings : value} representing settings to set.
-                        Settings will be updated only if their related key is in the dict
-        """
-        for key, value in settings.items():
-            self._run_command(
-                "nordvpn set {} {}".format(format_setting_name(key), str(value).lower())
-            )
-
-    def set_setting(self, setting_name, setting_args):
-        """
-        Set a specifig NordVpn setting with the given arguments
-        """
-        command = "nordvpn set {} {}".format(
-            format_setting_name(setting_name), setting_args
-        )
-        output = self._run_command(command)
-        if output is None:
-            return "Unable to change setting: {}".format(command)
-        output = " ".join(self._parse_words(output))
-        return output
-
-    def get_groups(self):
+    def get_groups(self) -> list[str]:
         """
         Returns a list of string representing the available groups
         """
-        groups = self._run_command("nordvpn groups")
-        if groups is None:
+        raw_groups = self._run_nordvpn_command("groups")
+        if raw_groups is None:
             return []
-        groups = self._parse_words(groups)
+        groups = parse_words(raw_groups)
         groups.sort()
         return groups
 
-    def get_cities(self, country):
+    def get_cities(self, country: str) -> list[str]:
         """
-        Return the list of cities available for the given country
+        Return the list of cities available for the specified country
         """
-        cities = self._run_command(
-            "nordvpn cities {}".format(country.replace(" ", "_"))
-        )
-        if cities is None:
+        raw_cities = self._run_nordvpn_command(f"cities {country}")
+        if (
+            raw_cities is None
+            or NordVpn.Messages.INVALID_CITIES_COMMAND.value in raw_cities
+        ):
             return []
-        cities = self._parse_words(cities)
+        cities = parse_words(raw_cities)
         cities.sort()
         return cities
 
-    def get_help_message(self, setting_name):
+    def get_settings_help_message(self, setting: SettingsNames) -> str:
         """
-        Return the help message relative to the specified setting
+        Returns the help message relative to the specified setting
         """
-        help_command = "nordvpn set {} --help".format(format_setting_name(setting_name))
-        message = self._run_command(help_command)
-        if message is None:
-            return "Unable to get help message. Command: {}".format(help_command)
-        return message
+        formatted_setting = self._format_setting_name(setting.value.lower())
+        return self._run_nordvpn_command(f"set {formatted_setting} --help")
 
-    # Private functions
-
-    def _run_command(self, command):
+    def get_settings(self) -> NordVpnSettings:
         """
-        Runs bash commands and notifies on errors
-
-        Args:
-            command: Bash command to run
-
-        Returns:
-            Output of the bash command
+        Return the current NordVpn settings
         """
-        process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
-        output, error = process.communicate()
-        # Decode from bytes to string
-        output = output.decode()
-        return output.strip()
+        output = self._run_nordvpn_command("settings")
+        return NordVpnSettings(output)
 
-    def _output_has_warnings(self, output):
-        """
-        Check if a command ouput stream contains warning strings
-        """
-        message = "Unknown error"
-        # Check warnings in output stream
-        if self.UPDATE_WARNING in output:
-            message = "Warning: new version of the nordvpn client available"
-        elif self.LOGIN_WARNING in output:
-            message = "Warning: Please login to NordVpn"
+    def set_technology(self, technology: Technologies) -> bool:
+        return self._run_nordvpn_set_command(
+            SettingsNames.TECHNOLOGY, technology.value.lower()
+        )
+
+    def set_firewall(self, enable: bool) -> bool:
+        return self._run_nordvpn_set_command(
+            SettingsNames.FIREWALL, "on" if enable else "off"
+        )
+
+    def set_kill_switch(self, enable: bool) -> bool:
+        return self._run_nordvpn_set_command(
+            SettingsNames.KILL_SWITCH, "on" if enable else "off"
+        )
+
+    def set_cybersec(self, enable: bool) -> bool:
+        return self._run_nordvpn_set_command(
+            SettingsNames.CYBERSEC, "on" if enable else "off"
+        )
+
+    def set_notify(self, enable: bool) -> bool:
+        return self._run_nordvpn_set_command(
+            SettingsNames.NOTIFY, "on" if enable else "off"
+        )
+
+    def set_auto_connect(self, enable: bool, args: Optional[str] = None) -> bool:
+        if enable and args is not None:
+            return self._run_nordvpn_set_command(
+                SettingsNames.AUTO_CONNECT, f"on {args}"
+            )
         else:
-            return False
-        self.status.add_warning(message)
-        return True
+            return self._run_nordvpn_set_command(
+                SettingsNames.AUTO_CONNECT, "on" if enable else "off"
+            )
 
-    def _status_check(self):
+    def set_ipv6(self, enable: bool) -> bool:
+        return self._run_nordvpn_set_command(
+            SettingsNames.IPV6, "on" if enable else "off"
+        )
+
+    def set_dns(self, enable: bool, servers: list[str] = []) -> bool:
+        return self._run_nordvpn_set_command(
+            SettingsNames.DNS, " ".join(servers) if enable else "off"
+        )
+
+    def add_whitelisted_subnet(self, subnet: str) -> bool:
+        return self._run_nordvpn_whitelist_command(f"add subnet {subnet}")
+
+    def remove_whitelisted_subnet(self, subnet: str) -> bool:
+        return self._run_nordvpn_whitelist_command(f"remove subnet {subnet}")
+
+    def add_whitelisted_port(
+        self, port: str, protocol: Optional[Protocols] = None
+    ) -> bool:
+        command = f"add port {port}"
+        if protocol:
+            command += f" {protocol.value}"
+        return self._run_nordvpn_whitelist_command(command)
+
+    def remove_whitelisted_port(
+        self, port: str, protocol: Optional[Protocols] = None
+    ) -> bool:
+        command = f"remove port {port}"
+        if protocol:
+            command += f" {protocol.value}"
+        return self._run_nordvpn_whitelist_command(command)
+
+    def _run_command(self, command: str) -> str:
         """
-        Checks if an IP is outputted by the NordVpn status command
-
-        Args:
-            _: As required by AppIndicator
+        Run a shell command and returns its output
         """
-        output = self._run_command("nordvpn status")
-        if output is not None:
-            raw = output.strip()
-            self.status.update(raw)
+        output = "UNKNOWN ERROR"
+        try:
+            result = run(
+                command.strip().split(), capture_output=True, text=True, check=True
+            )
+            output = result.stdout.strip()
+        except CalledProcessError as e:
+            output = e.output
+        return output
 
-    def _parse_words(self, raw):
+    def _run_nordvpn_command(self, args: str) -> str:
         """
-        Search for any separated words from the raw input string.
-        Returns a list of the extracted words sorted alphabetically.
+        Run a nordvpn command
         """
-        if raw is None:
-            return []
-        parsed_list = re.findall(r"(\w{2,})+", raw)
-        if parsed_list is None:
-            return []
-        # Sort the list and replace nasty characters
-        parsed_list = list(map(lambda r: r.replace("_", " "), parsed_list))
-        return parsed_list
+        return self._run_command(f"nordvpn {args}")
 
-    def _parse_settings(self, raw):
+    def _run_nordvpn_connect_command(self, args: str = "") -> bool:
         """
-        Parse the raw output of "nordvpn settings" command.
-        Returns a dictionary {Setting:Value}
+        Run a nordvpn connect command and return True if successful
         """
-        settings = {}
-        if raw is None:
-            return []
-        # Parse parameters with len > 2 to discard - characters at the beginning
-        match = re.findall(r"(\S{2,}\s*\S*):\s*(\S+)", raw)
-        if match is None:
-            return []
-        for key, value in match:
-            settings[key] = value
-        return settings
+        output = self._run_nordvpn_command(f"connect {args}")
+        return self.Messages.CONNECT_SUCCESS.value in output
 
+    def _run_nordvpn_set_command(self, setting: SettingsNames, args: str) -> bool:
+        """
+        Run a nordvpn set command and return True if successful
+        """
+        formatted_setting = self._format_setting_name(setting.value.lower())
+        output = self._run_nordvpn_command(f"set {formatted_setting} {args}")
+        return self.Messages.INVALID_COMMAND.value not in output
 
-# Utility functions
+    def _run_nordvpn_whitelist_command(self, args: str) -> bool:
+        """
+        Run a nordvpn whitelist command and return True if successful
+        """
+        output = self._run_nordvpn_command(f"whitelist {args}")
+        return self.Messages.INVALID_COMMAND.value not in output
 
-
-def format_setting_name(setting_name):
-    """
-    Return the given setting name formatted for compatibility
-    for "nordvpn set" command
-    """
-    return setting_name.replace(" ", "").replace("-", "").lower()
+    def _format_setting_name(self, setting_name: str) -> str:
+        """
+        Return the given setting name formatted for compatibility
+        for "nordvpn set" command
+        """
+        return setting_name.replace(" ", "").replace("-", "").lower()

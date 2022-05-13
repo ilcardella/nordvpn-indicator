@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-from nordvpn import Indicator, NordVpn
+from nordvpn import NordVpn
+from nordvpn_indicator import Indicator
 
 
 def main() -> None:

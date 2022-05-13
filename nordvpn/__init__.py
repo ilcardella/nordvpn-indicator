@@ -1,5 +1,8 @@
+from .settings import (  # NOQA # isort:skip
+    NordVpnSettings,
+    SettingsNames,
+    Technologies,
+    Protocols,
+)
+from .status import NordVpnStatus, ConnectionStatus  # NOQA # isort:skip
 from .nordvpn import NordVpn  # NOQA # isort:skip
-from .indicator import Indicator  # NOQA # isort:skip
-
-
-__version__ = "0.1.0"
