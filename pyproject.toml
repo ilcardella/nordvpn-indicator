@@ -5,9 +5,15 @@ description = "NordVPN Linux desktop indicator"
 authors = ["Alberto Cardellini"]
 license = "MIT"
 readme = "README.md"
+packages = [
+    { include = "nordvpn_indicator" },
+    { include = "nordvpn" },
+]
 
 [tool.poetry.dependencies]
 python = "^3.8"
+pycairo = "^1.21.0"
+PyGObject = "^3.42.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.1.2"

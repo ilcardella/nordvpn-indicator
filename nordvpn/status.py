@@ -46,6 +46,8 @@ class NordVpnStatus:
             return
 
     def _parse_raw_status(self, raw_status: str) -> None:
+        self.status_as_string = raw_status
+
         self.status = ConnectionStatus(
             find_string_value(NordVpnStatus.Param.STATUS.value, raw_status)
         )
@@ -70,3 +72,6 @@ class NordVpnStatus:
             self.uptime = find_string_value(
                 NordVpnStatus.Param.UPTIME.value, raw_status
             )
+
+    def to_string(self):
+        return self.status_as_string.split("-")[-1].strip()
