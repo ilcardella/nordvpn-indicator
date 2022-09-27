@@ -20,7 +20,7 @@ pytest = "^7.1.3"
 isort = "^5.10.1"
 black = "^22.8.0"
 flake8 = "^4.0.1"
-mypy = "^0.971"
+mypy = "^0.981"
 
 [tool.poetry.scripts]
 nordvpn_indicator = 'nordvpn_indicator:main'
