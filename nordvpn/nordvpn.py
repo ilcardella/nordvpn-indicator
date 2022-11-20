@@ -103,9 +103,8 @@ class NordVpn:
         Return the list of cities available for the specified country
         """
         raw_cities = self._run_nordvpn_command(f"cities {country}")
-        if (
-            raw_cities is None
-            or NordVpn.Messages.INVALID_CITIES_COMMAND.value in raw_cities
+        if (raw_cities is None) or (
+            NordVpn.Messages.INVALID_CITIES_COMMAND.value in raw_cities
         ):
             return []
         cities = parse_words(raw_cities)
