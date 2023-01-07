@@ -27,6 +27,7 @@ class NordVpn:
         DISCONNECT_SUCCESS = "You are disconnected from NordVPN"
         INVALID_COMMAND = "The command you entered is not valid."
         INVALID_CITIES_COMMAND = "Servers by city are not available for this country"
+        NEW_FEATURE_MESHNET = "New feature - Meshnet! Link remote devices in Meshnet to connect to them directly over encrypted private tunnels, and route your traffic through another device. Use the `nordvpn meshnet --help` command to get started. Learn more: https://nordvpn.com/features/meshnet/"
 
     def __init__(self):
         pass
@@ -83,7 +84,8 @@ class NordVpn:
         raw_countries = self._run_nordvpn_command("countries")
         if raw_countries is None:
             return []
-        countries = parse_words(raw_countries)
+        clean_output = self._clean_command_output(raw_countries)
+        countries = parse_words(clean_output)
         countries.sort()
         return countries
 
@@ -94,7 +96,8 @@ class NordVpn:
         raw_groups = self._run_nordvpn_command("groups")
         if raw_groups is None:
             return []
-        groups = parse_words(raw_groups)
+        clean_output = self._clean_command_output(raw_groups)
+        groups = parse_words(clean_output)
         groups.sort()
         return groups
 
@@ -107,7 +110,8 @@ class NordVpn:
             NordVpn.Messages.INVALID_CITIES_COMMAND.value in raw_cities
         ):
             return []
-        cities = parse_words(raw_cities)
+        clean_output = self._clean_command_output(raw_cities)
+        cities = parse_words(clean_output)
         cities.sort()
         return cities
 
@@ -240,3 +244,10 @@ class NordVpn:
         for "nordvpn set" command
         """
         return setting_name.replace(" ", "").replace("-", "").lower()
+
+    def _clean_command_output(self, command_output: str) -> str:
+        """Removes any known NordVpn news or warning from the command output and
+        returns the cleaned up output
+        """
+        clean = command_output.replace(self.Messages.NEW_FEATURE_MESHNET.value, "")
+        return clean
