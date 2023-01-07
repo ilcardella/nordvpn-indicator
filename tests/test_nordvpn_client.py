@@ -233,7 +233,8 @@ def test_get_countries(mock_run):
     mock_run.return_value = CompletedProcess(
         args=[],
         returncode=0,
-        stdout="""Albania			Estonia			Latvia			Slovakia
+        stdout="""New feature - Meshnet! Link remote devices in Meshnet to connect to them directly over encrypted private tunnels, and route your traffic through another device. Use the `nordvpn meshnet --help` command to get started. Learn more: https://nordvpn.com/features/meshnet/
+Albania			Estonia			Latvia			Slovakia
 Argentina		Finland			Lithuania		Slovenia
 Australia		France			Luxembourg		South_Africa
 Austria			Georgia			Malaysia		South_Korea
@@ -264,7 +265,8 @@ def test_get_groups(mock_run):
     mock_run.return_value = CompletedProcess(
         args=[],
         returncode=0,
-        stdout="""Africa_The_Middle_East_And_India	Onion_Over_VPN
+        stdout="""New feature - Meshnet! Link remote devices in Meshnet to connect to them directly over encrypted private tunnels, and route your traffic through another device. Use the `nordvpn meshnet --help` command to get started. Learn more: https://nordvpn.com/features/meshnet/
+Africa_The_Middle_East_And_India	Onion_Over_VPN
 Asia_Pacific				P2P
 Double_VPN				Standard_VPN_Servers
 Europe					The_Americas
@@ -285,7 +287,8 @@ def test_get_cities(mock_run):
     mock_run.return_value = CompletedProcess(
         args=[],
         returncode=0,
-        stdout="London		Manchester",
+        stdout="""New feature - Meshnet! Link remote devices in Meshnet to connect to them directly over encrypted private tunnels, and route your traffic through another device. Use the `nordvpn meshnet --help` command to get started. Learn more: https://nordvpn.com/features/meshnet/
+London		Manchester""",
     )
     cities = NordVpn().get_cities("United_Kingdom")
     mock_run.assert_called_once_with(
