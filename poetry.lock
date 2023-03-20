@@ -331,13 +331,13 @@ files = [
 
 [[package]]
 name = "pygobject"
-version = "3.42.2"
+version = "3.44.0"
 description = "Python bindings for GObject Introspection"
 category = "main"
 optional = false
-python-versions = ">=3.6, <4"
+python-versions = ">=3.7, <4"
 files = [
-    {file = "PyGObject-3.42.2.tar.gz", hash = "sha256:21524cef33100c8fd59dc135948b703d79d303e368ce71fa60521cc971cd8aa7"},
+    {file = "PyGObject-3.44.0.tar.gz", hash = "sha256:34c21bdca7aeaa602980dc51c11bb31ec300753975a66d5d41cb67e619e6835b"},
 ]
 
 [package.dependencies]
@@ -394,4 +394,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "267b951ecc2fc8dc32524412a9a0d3faf218d2412ae197d9fb91ea30f4410842"
+content-hash = "c0f3aa0f18feef23084391262187be47d35da25fb3c98f67408ef775a0d56d2c"
