@@ -7,18 +7,13 @@ on:
   pull_request:
     branches:
       - main
-  # schedule:
-  #   - cron: '0 0 * * *' # nightly build
-
-env:
-  poetry-version: '1.2.2'
 
 jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.9', '3.10']
+        python-version: ['3.9', '3.10', '3.11', '3.12']
     name: Python ${{ matrix.python-version }}
 
     steps:
@@ -34,10 +29,8 @@ jobs:
       - name: Pip cache
         uses: actions/cache@v3
         with:
-          # This path is specific to Ubuntu
           path: ~/.cache/pip
-          # Look to see if there is a cache hit for the corresponding poetry.lock
-          key: ${{ runner.os }}-pip-${{ env.poetry-version }}
+          key: ${{ runner.os }}-python-${{ matrix.python-version }}
           restore-keys: |
             ${{ runner.os }}-pip-
             ${{ runner.os }}-
@@ -45,7 +38,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install 'poetry==${{ env.poetry-version }}'
+          python -m pip install poetry
           sudo apt-get install python3-gi python3-gi-cairo gir1.2-gtk-3.0 libgirepository1.0-dev gcc libcairo2-dev pkg-config python3-dev
           sudo apt-get install gir1.2-appindicator3-0.1 python3-cairo-dev
 
