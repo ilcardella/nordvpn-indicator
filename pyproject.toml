@@ -13,7 +13,7 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.9"
 pycairo = "^1.26.0"
-PyGObject = "^3.46.0"
+PyGObject = "^3.48.1"
 tomli = "^2.0.1"
 
 [tool.poetry.dev-dependencies]
